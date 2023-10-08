@@ -40,7 +40,7 @@ async function decode(hevc_data){
 
     const decoder = new VideoDecoder({
         async output(frame) {
-            document.getElementById("cvs").ctx.drawImage(frame, 0, 0, frame.displayWidth, frame.displayHeight);
+            document.getElementById("cvs").getContext("2d").drawImage(frame, 0, 0, frame.displayWidth, frame.displayHeight);
             frame.close();
         },
         error(e) {
