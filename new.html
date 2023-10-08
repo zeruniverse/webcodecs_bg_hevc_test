@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<title>webcodecs demo</title>
+<style type="text/css">
+body, button {
+    font: 13px Helvetica, arial, freesans, clean, sans-serif;
+}
+a:link {
+    text-decoration: none;
+}
+a:visited {
+    text-decoration: none;
+}
+a:hover {
+    text-decoration: underline;
+}
+a:active {
+    text-decoration: none;
+}
+a {
+    color: #00a;
+}
+</style>
+<script>
+var count = 0;
+var frames = []
+function find_next_delimiter(data, start){
+    // find [0, 0, 0, 1]
+    while(true){
+        if(start + 5 > data.length){
+            return -1;
+        }
+        let first_zero = data.indexOf(0, start);
+        if(first_zero < 0 || first_zero + 5 > data.length){
+            return -1;
+        }
+        if(data[first_zero + 1] != 0){
+            start = first_zero + 2;
+            continue;
+        }
+        if(data[first_zero + 2] != 0){
+            start = first_zero + 3;
+            continue;
+        }
+        if(data[first_zero + 3] != 1){
+            start = first_zero + 4;
+            continue;
+        }
+        return first_zero;
+    }
+}
+async function decode(hevc_data){
+    document.getElementById("status").innerText = 'Pending';
+    // let des = new ArrayBuffer(3);
+    const decoder_config = {
+        codec: "hev1.4.10.L60.9F.C8",
+        hardwareAcceleration: "no-preference"
+    };
+    let supported = (await VideoDecoder.isConfigSupported(decoder_config)).supported
+    if(!supported){
+        document.getElementById("status").innerText = 'Config Not Supported';
+        return;
+    }
+
+    let success_flag = true;
+    count = 0;
+
+    const decoder = new VideoDecoder({
+        async output(frame) {
+            document.getElementById("cvs").getContext("2d").drawImage(frame, 0, 0, frame.displayWidth, frame.displayHeight);
+            // frames.push(frame);
+            frame.close();
+        },
+        error(e) {
+            success_flag = false;
+        }
+    });
+
+    decoder.configure(decoder_config);
+
+    let start_idx = find_next_delimiter(hevc_data, 0);
+    let ts = 0;
+    let type_array = [];
+    while(true){
+        let end_idx = find_next_delimiter(hevc_data, start_idx + 4);
+        let tmp_start_idx = start_idx;
+        while((end_idx > 0) && hevc_data[tmp_start_idx + 4] > 42 && hevc_data[end_idx + 4] > 42){
+            tmp_start_idx = end_idx;
+            end_idx = find_next_delimiter(hevc_data, end_idx + 4);
+        }
+        let chunk_end_idx = (end_idx < 0)?hevc_data.length:end_idx;
+        // type_array.push(hevc_data[start_idx + 4]);
+        let chunk_type = (hevc_data[start_idx + 4] > 42)?"key": "delta";
+        let chunk_data = hevc_data.slice(start_idx, chunk_end_idx);
+        // console.log("chunk", chunk_data);
+        // if(start_idx == 0 && chunk_type == "delta"){
+        //     start_idx = end_idx;
+        //     continue;
+        // }
+        console.log(chunk_type);
+        const chunk = new EncodedVideoChunk({
+            timestamp: ts,
+            type: chunk_type,
+            data: chunk_data,
+        });
+        // console.log(start_idx, hevc_data[start_idx + 4], hevc_data, "key");
+        ts += 1000;
+        decoder.decode(chunk);
+        start_idx = end_idx;
+        if(end_idx < 0){
+            break;
+        }
+    }
+    // const chunk = new EncodedVideoChunk({
+    //     timestamp: 0,
+    //     type: "key",
+    //     data: new Uint8Array(hevc_data),
+    // });
+    // decoder.decode(chunk);
+    await decoder.flush();
+
+    decoder.close();
+    document.getElementById("status").innerText = (success_flag)?"Success " + String(count):"Failed";
+}
+
+function run_decode(url) {
+    var request = new XMLHttpRequest();
+    request.open("get", url, true);
+    request.responseType = "arraybuffer";
+
+    request.onload = async function(event) {
+        // console.log(new Uint8Array(request.response));
+        decode(new Uint8Array(request.response));
+    };
+    request.onerror = function (e) {
+        console.log("Error!");
+    };
+    request.send();
+}
+
+</script>
+<body>
+    <h1>Press the Decode Button to decode. If success, canvas below will be rendered</h1>
+    <button onclick="run_decode('sample.hevc')">decode sample.hevc</button>
+    <canvas id="cvs" width="400px" height="400px"></canvas>
+    <div>Status: <span id="status">Pending</span></div>
+</body>
+</html>
