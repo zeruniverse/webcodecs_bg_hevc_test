@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<title>webcodecs demo</title>
+<style type="text/css">
+body, button {
+    font: 13px Helvetica, arial, freesans, clean, sans-serif;
+}
+a:link {
+    text-decoration: none;
+}
+a:visited {
+    text-decoration: none;
+}
+a:hover {
+    text-decoration: underline;
+}
+a:active {
+    text-decoration: none;
+}
+a {
+    color: #00a;
+}
+</style>
+<script>
+async function decode(hevc_data){
+    document.getElementById("status").innerText = 'Pending';
+    const decoder_config = {
+        codec: "hev1.4.16.L150.BF.C8",
+        hardwareAcceleration: "no-preference"
+    };
+    let supported = (await VideoDecoder.isConfigSupported(decoder_config)).supported
+    if(!supported){
+        document.getElementById("status").innerText = 'Config Not Supported';
+        return;
+    }
+
+    let success_flag = true;
+
+    const decoder = new VideoDecoder({
+        async output(frame) {
+            document.getElementById("cvs").ctx.drawImage(frame, 0, 0, frame.displayWidth, frame.displayHeight);
+            frame.close();
+        },
+        error(e) {
+            success_flag = false;
+        }
+    });
+
+    decoder.configure(decoder_config);
+
+    const chunk = new EncodedVideoChunk({
+        timestamp: 0,
+        type: "key",
+        data: new Uint8Array(hevc_data),
+    });
+
+    decoder.decode(chunk);
+
+    await decoder.flush();
+
+    decoder.close();
+    document.getElementById("status").innerText = (success_flag)?"Success":"Failed";
+}
+
+function run_decode(url) {
+    var request = new XMLHttpRequest();
+    request.open("get", url, true);
+    request.responseType = "arraybuffer";
+    request.onload = async function(event) {
+        decode(request.response);
+    };
+    request.onerror = function (e) {
+        console.log("Error!");
+    };
+    request.send();
+}
+
+</script>
+<body>
+    <h1>If success, canvas below will be rendered</h1>
+    <button onclick="run_decode('sample.hevc')">decode sample.hevc</button>
+    <canvas id="cvs" width="400px" height="400px"></canvas>
+    <div>Status: <span id="status">Pending</span></div>
+</body>
+</html>
