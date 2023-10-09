@@ -24,6 +24,7 @@ a {
 }
 </style>
 <script>
+var count = 0;
 async function decode(hevc_data){
     document.getElementById("status").innerText = 'Pending';
     const decoder_config = {
@@ -37,11 +38,13 @@ async function decode(hevc_data){
     }
 
     let success_flag = true;
+    count = 0;
 
     const decoder = new VideoDecoder({
         async output(frame) {
             document.getElementById("cvs").getContext("2d").drawImage(frame, 0, 0, frame.displayWidth, frame.displayHeight);
             frame.close();
+            count += 1;
         },
         error(e) {
             success_flag = false;
@@ -61,7 +64,7 @@ async function decode(hevc_data){
     await decoder.flush();
 
     decoder.close();
-    document.getElementById("status").innerText = (success_flag)?"Success":"Failed";
+    document.getElementById("status").innerText = (success_flag)?"Success " + String(count):"Failed";
 }
 
 function run_decode(url) {
