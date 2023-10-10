@@ -55,7 +55,7 @@ async function decode(hevc_data){
     document.getElementById("status").innerText = 'Pending';
     // let des = new ArrayBuffer(3);
     const decoder_config = {
-        codec: "hev1.4.10.L60.9F.C8",
+        codec: "hev1.1.6.L90.90",
         hardwareAcceleration: "no-preference"
     };
     let supported = (await VideoDecoder.isConfigSupported(decoder_config)).supported
