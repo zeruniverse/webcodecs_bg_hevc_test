@@ -74,7 +74,7 @@ async function decode(hevc_data){
             let idv = document.createElement('canvas');
             idv.height="400px";
             idv.width="400px";
-            document.getElementsById('dyn').appendChild(idv);
+            document.getElementById('dyn').appendChild(idv);
             idv.getContext("2d").drawImage(frame, 0, 0, frame.displayWidth, frame.displayHeight);
             let buffer = new Uint8Array(frame.allocationSize());
             await frame.copyTo(buffer);
