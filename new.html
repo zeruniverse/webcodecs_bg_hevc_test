@@ -25,6 +25,7 @@ a {
 </style>
 <script>
 var count = 0;
+var y_sum = 0;
 var frames = []
 function find_next_delimiter(data, start){
     // find [0, 0, 0, 1]
@@ -70,6 +71,12 @@ async function decode(hevc_data){
     const decoder = new VideoDecoder({
         async output(frame) {
             document.getElementById("cvs").getContext("2d").drawImage(frame, 0, 0, frame.displayWidth, frame.displayHeight);
+            let buffer = new Uint8Array(frame.allocationSize());
+            await frame.copyTo(buffer);
+            let length = buffer.length;
+            let i = 0;
+            while(i < length) y_sum += buffer[i++];
+            delete buffer;
             // frames.push(frame);
             count+=1;
             frame.close();
@@ -125,6 +132,7 @@ async function decode(hevc_data){
 
     decoder.close();
     document.getElementById("status").innerText = (success_flag)?"Success " + String(count):"Failed";
+    console.log("y_sum", y_sum);
 }
 
 function run_decode(url) {
