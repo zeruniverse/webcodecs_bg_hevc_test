@@ -26,7 +26,7 @@ a {
 <script>
 var count = 0;
 var y_sum = 0;
-var frames = []
+var frames_y = new Uint8Array(268*268*268);
 function find_next_delimiter(data, start){
     // find [0, 0, 0, 1]
     while(true){
@@ -66,32 +66,17 @@ async function decode(hevc_data){
     }
 
     let success_flag = true;
-    count = 0;
+    count = -1;
 
     const decoder = new VideoDecoder({
         async output(frame) {
+            count+=1;
             document.getElementById("cvs").getContext("2d").drawImage(frame, 0, 0, frame.displayWidth, frame.displayHeight);
             let buffer = new Uint8Array(frame.allocationSize());
             await frame.copyTo(buffer);
-            // idv.getContext("2d").drawImage(frame, 0, 0, frame.displayWidth, frame.displayHeight);
-            let idv = document.createElement('canvas');
-            idv.setAttribute('height', '400px');
-            idv.setAttribute('width', '400px');
-            document.getElementById('dyn').appendChild(idv);
-            const imageData = idv.getContext("2d").createImageData(268,268);
-            let t = 0;
-            for (let i = 0; i < imageData.data.length/4; i += 1) {
-                // Modify pixel data
-                imageData.data[i*4 + 0] = buffer[i]; // R value
-                imageData.data[i*4 + 1] = buffer[i]; // G value
-                imageData.data[i*4 + 2] = buffer[i]; // B value
-                imageData.data[i*4 + 3] = 255; // A value
-                t+=buffer[i];
-            }
-            idv.getContext("2d").putImageData(imageData, 0,0);
+            frames_y.set(buffer.subarray(0, 268*268), count * 268*268);
             delete buffer;
             // frames.push(frame);
-            count+=1;
             frame.close();
         },
         error(e) {
@@ -145,7 +130,43 @@ async function decode(hevc_data){
 
     decoder.close();
     document.getElementById("status").innerText = (success_flag)?"Success " + String(count):"Failed";
-    console.log("y_sum", y_sum);
+
+    for(let z=150; z<155; z+=1){
+        let idv = document.createElement('canvas');
+        idv.setAttribute('height', '400px');
+        idv.setAttribute('width', '400px');
+        document.getElementById('dyn').appendChild(idv);
+        const imageData = idv.getContext("2d").createImageData(268,268);
+        let t = 0;
+        for (let i = 0; i < imageData.data.length/4; i += 1) {
+            // Modify pixel data
+            imageData.data[i*4 + 0] = frames_y[z*268*268+i]; // R value
+            imageData.data[i*4 + 1] = frames_y[z*268*268+i]; // G value
+            imageData.data[i*4 + 2] = frames_y[z*268*268+i]; // B value
+            imageData.data[i*4 + 3] = 255; // A value
+        }
+        idv.getContext("2d").putImageData(imageData, 0,0);
+    }
+
+    for(let x=150; x<155; x+=1){
+        let idv = document.createElement('canvas');
+        idv.setAttribute('height', '400px');
+        idv.setAttribute('width', '400px');
+        document.getElementById('dynx').appendChild(idv);
+        const imageData = idv.getContext("2d").createImageData(268,268);
+        let t = 0;
+        for (let y=0; y<268; y+=1) {
+            for(let z=0; z<268; z+=1){
+                // Modify pixel data
+                imageData.data[(y*268+z)*4 + 0] = frames_y[z*268*268+x*268+y]; // R value
+                imageData.data[(y*268+z)*4 + 1] = frames_y[z*268*268+x*268+y]; // G value
+                imageData.data[(y*268+z)*4 + 2] = frames_y[z*268*268+x*268+y]; // B value
+                imageData.data[(y*268+z)*4 + 3] = 255; // A value
+            }
+        }
+        idv.getContext("2d").putImageData(imageData, 0,0);
+    }
+
 }
 
 function run_decode(url) {
@@ -168,7 +189,8 @@ function run_decode(url) {
     <h1>Press the Decode Button to decode. If success, canvas below will be rendered</h1>
     <button onclick="run_decode('sample.hevc')">decode sample.hevc</button>
     <canvas id="cvs" width="400px" height="400px"></canvas>
-    <div id="dyn"></div>
+    <div id="dyn"><div>Frames:</div></div>
+    <div id="dynx"><div>Section cut by plane along z-axis:</div></div>
     <div>Status: <span id="status">Pending</span></div>
 </body>
 </html>
